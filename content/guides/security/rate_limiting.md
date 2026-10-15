@@ -12,6 +12,7 @@ This guide covers rate limiting in AdonisJS applications. You will learn how to:
 - Use rate limiting directly for login protection and job queues
 - Enforce several limits at once using multi limiters
 - Handle rate limit exceptions and customize error messages
+- Monitor rejected requests using the `limit:exceeded` event
 - Create custom storage providers
 
 ## Overview
@@ -721,6 +722,36 @@ The `delete` method removes a key entirely:
 ```ts
 await requestsLimiter.delete('unique_key')
 ```
+
+## Monitoring rejected requests
+
+The limiter emits the `limit:exceeded` event every time it rejects a request. You can listen for this event to log abusive clients, report metrics to your monitoring service, or learn how often your limits are hit in production before tightening them.
+
+The event is emitted regardless of how you use the limiter, whether through the throttle middleware, the `consume`, `attempt`, and `penalize` methods, or a multi limiter. It contains the `key` that exceeded the limit and the limiter `response` at the time of the rejection.
+
+```ts title="start/events.ts"
+import emitter from '@adonisjs/core/services/emitter'
+import logger from '@adonisjs/core/services/logger'
+
+emitter.on('limit:exceeded', (event) => {
+  logger.warn(
+    {
+      key: event.key,
+      limit: event.response.limit,
+      availableIn: event.response.availableIn,
+    },
+    'rate limit exceeded'
+  )
+})
+```
+
+Keys created by the throttle middleware are prefixed with the limiter name, which tells you which limiter rejected the request. For example, a limiter defined using `limiter.define('api', ...)` creates keys like `api_ip_127.0.0.1`, or `api_42` when you call `usingKey(42)`.
+
+The event is only emitted for rejected requests. Methods that update the counters without rejecting a request (`increment`, `set`, and `block`) do not emit it, and the next rejected request will. When using a multi limiter, the event is emitted once for the limiter that rejected the request first.
+
+:::tip
+The event is emitted for every rejected request, including each request a blocked client keeps sending during the `blockDuration`. Keep the listener lightweight by writing a log line or incrementing a metric, and avoid performing database writes inside it.
+:::
 
 ## Testing
 

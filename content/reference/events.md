@@ -370,3 +370,20 @@ emitter.on('cache:written', (event) => {
   console.log(event.value)
 })
 ```
+
+## limit\:exceeded
+
+The event is dispatched by the `@adonisjs/limiter` package every time a request is rejected because the key has exhausted its requests. The `event.key` property is the key that exceeded the limit, and the `event.response` property contains the limiter state at the time of the rejection.
+
+See also: [Monitoring rejected requests](../guides/security/rate_limiting.md#monitoring-rejected-requests)
+
+```ts
+import emitter from '@adonisjs/core/services/emitter'
+
+emitter.on('limit:exceeded', (event) => {
+  console.log(event.key)
+  console.log(event.response.limit)
+  console.log(event.response.remaining)
+  console.log(event.response.availableIn)
+})
+```
